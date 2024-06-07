@@ -1,0 +1,1 @@
+A creator platform where one can upload videos,tweets
