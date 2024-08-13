@@ -9,42 +9,59 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-    
-    var videoAggregate;
-    try{
-      videoAggregate=Video.aggregate([
-        {
-         $match:{
+    let getAllVideo;
+    try {
+        getAllVideo = Video.aggregate([
+            {
+                $sample: {
+                    size: parseInt(limit),
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "details",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullname: 1,
+                                avatar: 1,
+                                username: 1,
+                            },
+                        },
 
-         }
-      },
-      {
-        $lookup:{
-            from:"video",
-            localField: "owner",
-            foreignField: "_id",
-            as:"owner",
-            pipeline:
-            [
-                {
-                    $project:{
-                        _id: 1,
-                        fullName:1,
-                        avatar: "$avatar.url",
-                        username: 1,
-                    }
-                }
-            ]
-        }
-      },
-      {
-        $addFields:{
-            
-        }
-      }
-    ])
+                    ],
+                },
+            },
+
+            {
+                $addFields: {
+                    details: {
+                        $first: "$details",
+                    },
+                },
+            },
+        ]);
+    } catch (error) {
+        throw new ApiError(
+            500,
+            "Something went wrong while fetching Videos !!"
+        );
     }
-    catch(err){}
+
+    const result = await Video.aggregatePaginate(getAllVideo, { page, limit });
+
+    if (result.docs.length == 0) {
+        return res.status(200).json(new ApiResponse(200, [], "No Video Found"));
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, result.docs, "Videos fetched Succesfully !")
+        );
  
 })
 
@@ -116,9 +133,22 @@ const deleteVideo = asyncHandler(async (req, res) => {
         return res.status(200).json(new ApiResponse(200,{},"Video was deleted Successfully"))
 
 })
-
+////
 const togglePublishStatus = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
+    const { videoId } = req.params;
+
+    if(!videoId){
+        throw new ApiError(400,"id not accessable")
+    }
+
+    const videoExisted =  await Video.findById(videoId);
+    if(!videoExisted){
+        throw new ApiError(400,"Video doesnot existed")}
+     if(!videoExisted.owner == req.user?._id) throw new ApiError(400,"Not allowed to toggle")
+    videoExisted.isPublished = ! Video.isPublished
+   await videoExisted.save({validateBeforeSave: false});
+    return res.status(200).json( new ApiResponse(200,videoExisted.isPublished ,"check published or not")
+    )
 })
 
 export {
