@@ -25,5 +25,24 @@ const uploadOnCloudinary=async(localFilePath)=>{
    }
 }
 
+const deleteVideo=async(localFilePath)=>{
+  try{
+     await cloudinary.uploader.destroy(localFilePath,{resource_type:"video"});
+     return true;
+  }
+  catch(err){
+    console.error('Error deleting video:', err);
+  }
+}
+const deleteImage=async(localFilePath)=>{
+  try{
+   await cloudinary.uploader.destroy(localFilePath);
+     return true;
+  }
+  catch(err){
+    console.error('Error deleting image:', err);
+    return null;
+  }
+}
 
-export {uploadOnCloudinary}
+export {uploadOnCloudinary,deleteImage,deleteVideo};
